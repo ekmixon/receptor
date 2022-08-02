@@ -41,7 +41,7 @@ class IgnoreRequiredWithHelp(click.Group):
 @click.option('--cert', default=None, help="Client certificate filename")
 @click.option('--insecureskipverify', default=False, help="Accept any server cert", show_default=True)
 def cli(ctx, socket, config, tlsclient, rootcas, key, cert, insecureskipverify):
-    ctx.obj = dict()
+    ctx.obj = {}
     ctx.obj['rc'] = ReceptorControl(socket, config=config, tlsclient=tlsclient, rootcas=rootcas, key=key, cert=cert, insecureskipverify=insecureskipverify)
 def get_rc(ctx):
     return ctx.obj['rc']
@@ -94,8 +94,7 @@ def status(ctx):
             print(f"{node:<{longest_node}} ", end="")
             pprint(costs[node])
 
-    routes = status.pop('RoutingTable', None)
-    if routes:
+    if routes := status.pop('RoutingTable', None):
         print()
         print(f"{'Route':<{longest_node}} Via")
         for node in routes:
@@ -153,11 +152,10 @@ def ping(ctx, node, count, delay):
         results = rc.simple_command(f"ping {node}")
         if "Success" in results and results["Success"]:
             print(f"Reply from {results['From']} in {results['TimeStr']}")
+        elif "From" in results and "TimeStr" in results:
+            print(f"Error {results['Error']} from {results['From']} in {results['TimeStr']}")
         else:
-            if "From" in results and "TimeStr" in results:
-                print(f"Error {results['Error']} from {results['From']} in {results['TimeStr']}")
-            else:
-                print(f"Error: {results['Error']}")
+            print(f"Error: {results['Error']}")
         if i < count-1:
             time.sleep(delay)
 
@@ -166,15 +164,13 @@ def ping(ctx, node, count, delay):
 @click.pass_context
 def reload(ctx):
     rc = get_rc(ctx)
-    results = rc.simple_command(f"reload")
+    results = rc.simple_command("reload")
     if "Success" in results and results["Success"]:
-        print(f"Reload successful")
+        print("Reload successful")
     else:
         print(f"Error: {results['Error']}")
         if "ERRORCODE 3" in results['Error']:
             sys.exit(3)
-        elif "ERRORCODE 4" in results['Error']:
-            sys.exit(4)
         else:
             sys.exit(4)
 
@@ -221,11 +217,10 @@ def connect(ctx, node, service, raw, tlsclient):
                         return
                     sys.stdout.write(data.decode())
                     sys.stdout.flush()
-                else:
-                    data = sys.stdin.read()
-                    if not data:
-                        return
+                elif data := sys.stdin.read():
                     rc._socket.send(data.encode())
+                else:
+                    return
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSAFLUSH, stdin_tattrs)
         print()
@@ -261,8 +256,8 @@ def list_units(ctx, unit_id, node, tlsclient, quiet):
         rc.connect_to_service(node, "control", tlsclient)
         rc.handshake()
     if unit_id:
-        unit_id = " " + unit_id
-    work = rc.simple_command("work list" + unit_id)
+        unit_id = f" {unit_id}"
+    work = rc.simple_command(f"work list{unit_id}")
     if quiet:
         for k in work.keys():
             print(k)
@@ -304,10 +299,7 @@ def submit(ctx, worktype, node, payload, no_payload, payload_literal, tlsclient,
     elif no_payload:
         payload_data = "".encode()
     else:
-        if payload == "-":
-            payload_data = sys.stdin.buffer
-        else:
-            payload_data = open(payload, 'rb')
+        payload_data = sys.stdin.buffer if payload == "-" else open(payload, 'rb')
     unitid = None
     try:
         params = dict(s.split('=', 1) for s in param)
@@ -381,7 +373,7 @@ def release(ctx, force, unit_ids):
     if len(unit_ids) == 0:
         print("No unit IDs supplied: Not doing anything")
         return
-    op = "release" if not force else "force-release"
+    op = "force-release" if force else "release"
     print("Released:")
     op_on_unit_ids(ctx, op, unit_ids)
 

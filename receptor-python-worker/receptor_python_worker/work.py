@@ -9,7 +9,7 @@ import pkg_resources
 from .plugin_utils import BUFFER_PAYLOAD, BYTES_PAYLOAD, FILE_PAYLOAD
 
 # Allow existing worker plugins to "import receptor" and get our version of plugin_utils
-sys.modules['receptor'] = sys.modules[__package__+'.plugin_utils']
+sys.modules['receptor'] = sys.modules[f'{__package__}.plugin_utils']
 
 # WorkState constants
 WorkStatePending = 0
@@ -45,12 +45,13 @@ class WorkPluginRunner:
         self.shutting_down = False
 
     def load_plugin(self):
-        entry_points = [
-            x
-            for x in filter(
-                lambda x: x.name == self.plugin_namespace, pkg_resources.iter_entry_points("receptor.worker")
+        entry_points = list(
+            filter(
+                lambda x: x.name == self.plugin_namespace,
+                pkg_resources.iter_entry_points("receptor.worker"),
             )
-        ]
+        )
+
         if not entry_points:
             raise ValueError(f"Plugin {self.plugin_namespace} not found")
         self.plugin_worker = entry_points[0].load()

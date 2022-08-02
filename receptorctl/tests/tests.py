@@ -19,26 +19,35 @@ if os.path.exists(tmpDir):
 os.mkdir(tmpDir)
 
 def generate_cert(name, commonName):
-    keyPath = os.path.join(tmpDir, name + ".key")
-    crtPath = os.path.join(tmpDir, name + ".crt")
-    os.system("openssl genrsa -out " + keyPath + " 2048")
-    os.system("openssl req -x509 -new -nodes -key " + keyPath + " -subj /C=/ST=/L=/O=/OU=ReceptorTesting/CN=ca -sha256 -out " + crtPath)
+    keyPath = os.path.join(tmpDir, f"{name}.key")
+    crtPath = os.path.join(tmpDir, f"{name}.crt")
+    os.system(f"openssl genrsa -out {keyPath} 2048")
+    os.system(
+        f"openssl req -x509 -new -nodes -key {keyPath} -subj /C=/ST=/L=/O=/OU=ReceptorTesting/CN=ca -sha256 -out {crtPath}"
+    )
+
     return keyPath, crtPath
 
 def generate_cert_with_ca(name, caKeyPath, caCrtPath, commonName):
-    keyPath = os.path.join(tmpDir, name + ".key")
-    crtPath = os.path.join(tmpDir, name + ".crt")
-    csrPath = os.path.join(tmpDir, name + ".csa")
-    extPath = os.path.join(tmpDir, name + ".ext")
+    keyPath = os.path.join(tmpDir, f"{name}.key")
+    crtPath = os.path.join(tmpDir, f"{name}.crt")
+    csrPath = os.path.join(tmpDir, f"{name}.csa")
+    extPath = os.path.join(tmpDir, f"{name}.ext")
     # create x509 extension
     with open(extPath, "w") as ext:
-        ext.write("subjectAltName=DNS:" + commonName)
+        ext.write(f"subjectAltName=DNS:{commonName}")
         ext.close()
-    os.system("openssl genrsa -out " + keyPath + " 2048")
+    os.system(f"openssl genrsa -out {keyPath} 2048")
     # create cert request
-    os.system("openssl req -new -sha256 -key " + keyPath + " -subj /C=/ST=/L=/O=/OU=ReceptorTesting/CN=" + commonName + " -out " + csrPath)
+    os.system(
+        f"openssl req -new -sha256 -key {keyPath} -subj /C=/ST=/L=/O=/OU=ReceptorTesting/CN={commonName} -out {csrPath}"
+    )
+
     # sign cert request
-    os.system("openssl x509 -req -extfile " + extPath + " -in " + csrPath + " -CA " + caCrtPath + " -CAkey " + caKeyPath + " -CAcreateserial -out " + crtPath + " -sha256")
+    os.system(
+        f"openssl x509 -req -extfile {extPath} -in {csrPath} -CA {caCrtPath} -CAkey {caKeyPath} -CAcreateserial -out {crtPath} -sha256"
+    )
+
     return keyPath, crtPath
 
 caKeyPath, caCrtPath = generate_cert("ca", "ca")
@@ -75,7 +84,16 @@ class TestReceptorCTL:
         node1_controller = ReceptorControl(socketaddress)
         status = node1_controller.simple_command("status")
         node1_controller.close()
-        assert not (set(["Advertisements", "Connections", "KnownConnectionCosts", "NodeID", "RoutingTable"]) - status.keys())
+        assert (
+            not {
+                "Advertisements",
+                "Connections",
+                "KnownConnectionCosts",
+                "NodeID",
+                "RoutingTable",
+            }
+            - status.keys()
+        )
 
     def test_simple_command_fail(self):
         socketaddress = "unix://" + os.path.join(tmpDir, "node1.sock")
@@ -89,7 +107,16 @@ class TestReceptorCTL:
         node1_controller = ReceptorControl(socketaddress)
         status = node1_controller.simple_command("status")
         node1_controller.close()
-        assert not (set(["Advertisements", "Connections", "KnownConnectionCosts", "NodeID", "RoutingTable"]) - status.keys())
+        assert (
+            not {
+                "Advertisements",
+                "Connections",
+                "KnownConnectionCosts",
+                "NodeID",
+                "RoutingTable",
+            }
+            - status.keys()
+        )
 
     def test_tcp_control_service_tls(self):
         socketaddress = "tls://localhost:11113"
@@ -100,7 +127,16 @@ class TestReceptorCTL:
         node1_controller = ReceptorControl(socketaddress, rootcas=rootcas, key=key, cert=cert, insecureskipverify=insecureskipverify)
         status = node1_controller.simple_command("status")
         node1_controller.close()
-        assert not (set(["Advertisements", "Connections", "KnownConnectionCosts", "NodeID", "RoutingTable"]) - status.keys())
+        assert (
+            not {
+                "Advertisements",
+                "Connections",
+                "KnownConnectionCosts",
+                "NodeID",
+                "RoutingTable",
+            }
+            - status.keys()
+        )
 
     def test_connect_to_service(self):
         socketaddress = "unix://" + os.path.join(tmpDir, "node1.sock")

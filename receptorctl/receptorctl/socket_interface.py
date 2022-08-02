@@ -40,25 +40,25 @@ class ReceptorControl:
         self._sockfile.flush()
 
     def handshake(self):
-        m = re.compile("Receptor Control, node (.+)").fullmatch(self.readstr())
-        if not m:
+        if m := re.compile("Receptor Control, node (.+)").fullmatch(
+            self.readstr()
+        ):
+            self._remote_node = m[1]
+        else:
             raise RuntimeError("Failed to connect to Receptor socket")
-        self._remote_node = m[1]
 
     def read_and_parse_json(self):
         text = self.readstr()
         if str.startswith(text, "ERROR:"):
             raise RuntimeError(text[7:])
-        data = json.loads(text)
-        return data
+        return json.loads(text)
 
     def readconfig(self, config, tlsclient):
         with open(config, "r") as yamlfid:
             yamldata = yaml.load(yamlfid, Loader=yaml.FullLoader)
             yamlfid.close()
         for i in yamldata:
-            key = i.get("tls-client", None)
-            if key:
+            if key := i.get("tls-client", None):
                 if key["name"] == tlsclient:
                     self._rootcas = key.get("rootcas", self._rootcas)
                     self._key = key.get("key", self._key)
@@ -74,8 +74,9 @@ class ReceptorControl:
     def connect(self):
         if self._socket is not None:
             return
-        m = re.compile("(tcp|tls):(//)?([a-zA-Z0-9-.:]+):([0-9]+)|(unix:(//)?)?([^:]+)").fullmatch(self._socketaddress)
-        if m:
+        if m := re.compile(
+            "(tcp|tls):(//)?([a-zA-Z0-9-.:]+):([0-9]+)|(unix:(//)?)?([^:]+)"
+        ).fullmatch(self._socketaddress):
             unixsocket = m[7]
             host = m[3]
             port = m[4]
@@ -160,21 +161,20 @@ class ReceptorControl:
 
         if params:
             for k,v in params.items():
-                if k not in commandMap:
-                    if v[0] == '@' and v[:2] != '@@':
-                        fname = v[1:]
-                        if not os.path.exists(fname):
-                            raise FileNotFoundError("{} does not exist".format(fname))
-                        try:
-                            with open(fname, 'r') as f:
-                                v_contents = f.read()
-                        except:
-                            raise OSError("could not read from file {}".format(fname))
-                        commandMap[k] = v_contents
-                    else:
-                        commandMap[k] = v
-                else:
+                if k in commandMap:
                     raise RuntimeError(f"Duplicate or illegal parameter {k}")
+                if v[0] == '@' and v[:2] != '@@':
+                    fname = v[1:]
+                    if not os.path.exists(fname):
+                        raise FileNotFoundError(f"{fname} does not exist")
+                    try:
+                        with open(fname, 'r') as f:
+                            v_contents = f.read()
+                    except:
+                        raise OSError(f"could not read from file {fname}")
+                    commandMap[k] = v_contents
+                else:
+                    commandMap[k] = v
         commandJson = json.dumps(commandMap)
         command = f"{commandJson}\n"
         self.writestr(command)
@@ -183,7 +183,7 @@ class ReceptorControl:
         if not m:
             errmsg = "Failed to start work unit"
             if str.startswith(text, "ERROR: "):
-                errmsg = errmsg + ": " + text[7:]
+                errmsg = f"{errmsg}: {text[7:]}"
             raise RuntimeError(errmsg)
         if isinstance(payload, io.IOBase):
             shutil.copyfileobj(payload, self._sockfile)
@@ -199,8 +199,7 @@ class ReceptorControl:
         self.close()
         if text.startswith("ERROR:"):
             raise RuntimeError(f"Remote error: {text}")
-        result = json.loads(text)
-        return result
+        return json.loads(text)
 
     def get_work_results(self, unit_id, return_socket=False, return_sockfile=True):
         self.connect()
@@ -210,7 +209,7 @@ class ReceptorControl:
         if not m:
             errmsg = "Failed to get results"
             if str.startswith(text, "ERROR: "):
-                errmsg = errmsg + ": " + text[7:]
+                errmsg = f"{errmsg}: {text[7:]}"
             raise RuntimeError(errmsg)
         shutdown_write(self._socket)
 
